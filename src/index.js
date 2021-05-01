@@ -5,13 +5,15 @@ const fs = require("fs");
 let commands = new Map();
 let prefix = "!";
 
-const commandFiles = fs
-  .readdirSync("./src/commands")
-  .filter((file) => file.endsWith(".js"));
+const commandCategories = fs.readdirSync("./src/commands");
 
-for (let i = 0; i < commandFiles.length; i++) {
-  const command = require(`./commands/${commandFiles[i]}`);
-  commands.set(command.name, command);
+for (let i = 0; i < commandCategories.length; i++) {
+  fs.readdirSync(`./src/commands/${commandCategories[i]}`)
+    .filter((file) => file.endsWith(".js"))
+    .map((file) => {
+      const command = require(`./commands/${commandCategories[i]}/${file}`);
+      commands.set(command.name, command);
+    });
 }
 
 client.on("ready", () => {
