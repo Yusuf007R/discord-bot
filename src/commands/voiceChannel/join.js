@@ -1,5 +1,5 @@
 module.exports = {
-  name: "join",
+  cmd: "join",
   description: "join voice channel",
   run(message, args) {
     if (!message.guild.me.voice.channel) message.member.voice.channel.join();

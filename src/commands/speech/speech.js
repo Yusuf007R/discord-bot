@@ -1,23 +1,19 @@
 const axios = require("axios");
 
 module.exports = {
-  name: "speech",
+  cmd: "speech",
+  aliases: ["s"],
   description: "speech command!",
   async run(message, args) {
     try {
-      const connection = await message.member.voice.channel.join();
-      axios
-        .post(
-          "https://ttsmp3.com/makemp3_new.php",
-          `msg=${args.join(" ")}&lang=Lupe&source=ttsmp3`
-        )
-        .then((res) => {
-          // setInterval(() => {
-          //   const dispatcher = connection.play(xd.data.URL);
-          // }, 5000);
-          const dispatcher = connection.play(res.data.URL);
-          dispatcher.setVolume(1);
-        });
+      message.client.botGlobal.connection = await message.member.voice.channel.join();
+      let res = await axios.post(
+        "https://ttsmp3.com/makemp3_new.php",
+        `msg=${args.join(" ")}&lang=Lupe&source=ttsmp3`
+      );
+      message.client.botGlobal.dispatcher = message.client.botGlobal.connection.play(
+        res.data.URL
+      );
     } catch (error) {
       console.log(error);
     }

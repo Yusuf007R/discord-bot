@@ -1,9 +1,11 @@
 const Discord = require("discord.js");
 const client = new Discord.Client();
 const fs = require("fs");
+const commandHandler = require("./utils/commandHandler");
 
-let commands = new Map();
+let commandList = new Array();
 let prefix = "!";
+client.botGlobal = {};
 
 const commandCategories = fs.readdirSync("./src/commands");
 
@@ -12,7 +14,7 @@ for (let i = 0; i < commandCategories.length; i++) {
     .filter((file) => file.endsWith(".js"))
     .map((file) => {
       const command = require(`./commands/${commandCategories[i]}/${file}`);
-      commands.set(command.name, command);
+      commandList.push(command);
     });
 }
 
@@ -20,13 +22,12 @@ client.on("ready", () => {
   console.log(`connected as ${client.user.tag}`);
 });
 
-client.on("message", (message) => {
+client.on("message", async (message) => {
   if (!message.content.startsWith(prefix) || message.author.bot) return;
 
   const args = message.content.slice(prefix.length).trim().split(" ");
   const command = args.shift().toLowerCase();
-
-  let commandObj = commands.get(command);
+  let commandObj = commandHandler(command, commandList);
   if (commandObj) {
     commandObj.run(message, args);
   }

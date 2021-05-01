@@ -1,5 +1,5 @@
 module.exports = {
-  name: "ping",
+  cmd: "ping",
   description: "Ping!",
   run(message, args) {
     try {
