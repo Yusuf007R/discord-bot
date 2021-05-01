@@ -2,10 +2,14 @@ const Discord = require("discord.js");
 const client = new Discord.Client();
 const fs = require("fs");
 const commandHandler = require("./utils/commandHandler");
+const Player = require("./player/player");
 
+const prefix = process.env.PREFIX;
 let commandList = new Array();
-let prefix = "!";
+
 client.botGlobal = {};
+client.botGlobal.players = new Map();
+client.botGlobal.players.set(client.guilds.id, new Player());
 
 const commandCategories = fs.readdirSync("./src/commands");
 
