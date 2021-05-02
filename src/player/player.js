@@ -1,6 +1,7 @@
 const axios = require("axios");
-const ytdl = require("ytdl-core");
-
+// const ytdl = require("ytdl-core");
+const YoutubeDlWrap = require("youtube-dl-wrap");
+const youtubeDlWrap = new YoutubeDlWrap();
 module.exports = class Player {
   constructor() {
     this.connection;
@@ -8,6 +9,7 @@ module.exports = class Player {
     this.queue = [];
     this.playing = false;
     this.message;
+    this.paused = false;
   }
 
   play(message, arg) {
@@ -18,7 +20,10 @@ module.exports = class Player {
 
   pause() {
     try {
-      if (this.dispatcher) this.dispatcher.pause();
+      if (this.dispatcher) {
+        this.dispatcher.pause();
+        this.paused = true;
+      }
     } catch (error) {
       console.log(error);
     }
@@ -31,6 +36,7 @@ module.exports = class Player {
         this.dispatcher.resume();
         this.dispatcher.pause();
         this.dispatcher.resume();
+        this.paused = false;
       }
       console.log("resumed");
     } catch (error) {
@@ -77,13 +83,26 @@ module.exports = class Player {
 
   async _play() {
     if (this.queue.length == 0) return;
-
     try {
       this.playing = true;
       this.connection = await this.message.member.voice.channel.join();
-      const buffer = ytdl(this.queue[0], {
-        filter: "audioonly",
-      });
+      let buffer = youtubeDlWrap
+        .execStream([this.queue[0], "-f", "best[ext=mp4]"])
+        .on("progress", (progress) =>
+          console.log(
+            progress.percent,
+            progress.totalSize,
+            progress.currentSpeed,
+            progress.eta
+          )
+        )
+        .on("youtubeDlEvent", (eventType, eventData) =>
+          console.log(eventType, eventData)
+        )
+        .on("error", (error) => console.error(error))
+        .on("close", () => console.log("all done"));
+
+      // console.log(buffer);
       this.dispatcher = this.connection.play(buffer);
       this.dispatcher.on("start", () => {
         this.queue.shift();
