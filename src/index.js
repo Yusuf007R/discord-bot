@@ -5,6 +5,7 @@ const commandHandler = require("./utils/commandHandler");
 const Player = require("./player/player");
 
 const prefix = process.env.PREFIX;
+
 let commandList = new Array();
 
 client.botGlobal = {};
@@ -28,7 +29,6 @@ client.on("ready", () => {
 
 client.on("message", async (message) => {
   if (!message.content.startsWith(prefix) || message.author.bot) return;
-
   const args = message.content.slice(prefix.length).trim().split(" ");
   const command = args.shift().toLowerCase();
   let commandObj = commandHandler(command, commandList);

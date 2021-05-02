@@ -5,20 +5,15 @@ module.exports = class Player {
   constructor() {
     this.connection;
     this.dispatcher;
-    this.queue;
+    this.queue = [];
+    this.playing = false;
+    this.message;
   }
 
-  async play(message, arg) {
-    try {
-      this.connection = await message.member.voice.channel.join();
-      let buffer = ytdl(arg, {
-        filter: "audioonly",
-      });
-
-      this.dispatcher = this.connection.play(buffer);
-    } catch (error) {
-      console.log(error);
-    }
+  play(message, arg) {
+    this.message = message;
+    this.queue.push(arg);
+    if (!this.playing) this._play(message, arg);
   }
 
   pause() {
@@ -43,9 +38,25 @@ module.exports = class Player {
     }
   }
 
+  skip() {
+    try {
+      if (this.playing) {
+        this.dispatcher.destroy();
+        this.playing = false;
+        this._play();
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
   stop() {
     try {
-      if (this.dispatcher) this.dispatcher.destroy();
+      if (this.playing) {
+        this.dispatcher.destroy();
+        this.playing = false;
+        this.queue = [];
+      }
     } catch (error) {
       console.log(error);
     }
@@ -59,6 +70,30 @@ module.exports = class Player {
         `msg=${arg}&lang=Lupe&source=ttsmp3`
       );
       this.dispatcher = this.connection.play(res.data.URL);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async _play() {
+    if (this.queue.length == 0) return;
+
+    try {
+      this.playing = true;
+      this.connection = await this.message.member.voice.channel.join();
+      const buffer = ytdl(this.queue[0], {
+        filter: "audioonly",
+      });
+      this.dispatcher = this.connection.play(buffer);
+      this.dispatcher.on("start", () => {
+        this.queue.shift();
+      });
+      this.dispatcher.on("finish", () => {
+        if (this.queue.length == 0) {
+          this.playing = false;
+        }
+        this._play();
+      });
     } catch (error) {
       console.log(error);
     }

@@ -1,0 +1,21 @@
+{
+  "Command": {
+    "scope": "javascript,typescript",
+    "prefix": "cmd",
+    "body": [
+      "module.exports = {",
+      "cmd: '${cmd}',",
+      "aliases:[],",
+      "description: '${desc}',",
+      "run(message, args) {",
+      "try {",
+      "message.channel.send('Pong.');",
+      "} catch (error) {",
+      "console.log(error);",
+      "}",
+      "},",
+      "};"
+    ],
+    "description": "command template"
+  }
+}
