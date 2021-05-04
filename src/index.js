@@ -1,16 +1,13 @@
 const Discord = require("discord.js");
 const client = new Discord.Client();
 const fs = require("fs");
-const commandHandler = require("./utils/commandHandler");
 const Player = require("./player/player");
+const commandHandler = require("./utils/commandHandler");
 
 const prefix = process.env.PREFIX;
-
 let commandList = new Array();
-
 client.botGlobal = {};
-client.botGlobal.players = new Map();
-client.botGlobal.players.set(client.guilds.id, new Player());
+client.botGlobal.players = new Discord.Collection();
 
 const commandCategories = fs.readdirSync("./src/commands");
 
@@ -25,6 +22,9 @@ for (let i = 0; i < commandCategories.length; i++) {
 
 client.on("ready", () => {
   console.log(`connected as ${client.user.tag}`);
+  client.guilds.cache.map((guild) =>
+    client.botGlobal.players.set(guild.id, new Player())
+  );
 });
 
 client.on("message", async (message) => {

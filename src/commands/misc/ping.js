@@ -1,7 +1,7 @@
 module.exports = {
   cmd: "ping",
   description: "Ping!",
-  run(message, args) {
+  run(message) {
     try {
       message.channel.send("Pong.");
     } catch (error) {

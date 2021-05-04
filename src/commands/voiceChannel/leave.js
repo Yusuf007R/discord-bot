@@ -1,10 +1,11 @@
 module.exports = {
   cmd: "leave",
   description: "leave voice channel ",
-  run(message, args) {
+  run(message) {
     try {
-      if (message.guild.me.voice.channel)
-        message.guild.me.voice.channel.leave();
+      const player = message.client.botGlobal.players.get(message.guild.id);
+      if (message.guild.me.voice.channel) player.stop();
+      message.guild.me.voice.channel.leave();
     } catch (error) {
       console.log(error);
     }
