@@ -3,6 +3,8 @@ const axios = require("axios");
 module.exports = {
   cmd: "repeat",
   description: "repeat a massage",
+  categories: ["voiceConnection"],
+  guildOnly: true,
   async run(message, args) {
     try {
       const connection = await message.member.voice.channel.join();

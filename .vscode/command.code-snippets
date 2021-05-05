@@ -5,7 +5,9 @@
     "body": [
       "module.exports = {",
       "cmd: '${cmd}',",
+      "guildOnly: ${guild},",
       "aliases:[],",
+      "categories: ['${cat}'],",
       "description: '${desc}',",
       "run(message, args) {",
       "try {",
