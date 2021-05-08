@@ -1,24 +1,26 @@
 const Discord = require("discord.js");
-const client = new Discord.Client();
 const fs = require("fs");
 const Player = require("./player/player");
 const commandHandler = require("./utils/commandHandler");
+const msgParser = require("./utils/msgParser");
 
-const prefix = process.env.PREFIX;
+const client = new Discord.Client();
+client.login(process.env.BOT_TOKEN);
+
 let commandList = new Array();
 client.botGlobal = {};
 client.botGlobal.players = new Discord.Collection();
 
 const commandFiles = fs.readdirSync("./src/commands");
 
-for (let i = 0; i < commandFiles.length; i++) {
-  fs.readdirSync(`./src/commands/${commandFiles[i]}`)
+commandFiles.map((folder) => {
+  fs.readdirSync(`./src/commands/${folder}`)
     .filter((file) => file.endsWith(".js"))
     .map((file) => {
-      const command = require(`./commands/${commandFiles[i]}/${file}`);
+      const command = require(`./commands/${folder}/${file}`);
       commandList.push(command);
     });
-}
+});
 
 client.on("ready", () => {
   console.log(`connected as ${client.user.tag}`);
@@ -28,9 +30,9 @@ client.on("ready", () => {
 });
 
 client.on("message", async (message) => {
-  if (!message.content.startsWith(prefix) || message.author.bot) return;
-  const args = message.content.slice(prefix.length).trim().split(" ");
-  const command = args.shift().toLowerCase();
+  if (message.author.bot) return;
+  const { args, command } = msgParser(message);
+  if (!command) return;
   let commandObj = commandHandler(command, commandList);
   if (commandObj) {
     if (message.channel.type === "dm" && commandObj.guildOnly) {
@@ -53,5 +55,3 @@ client.on("message", async (message) => {
     commandObj.run(message, args);
   }
 });
-
-client.login(process.env.BOT_TOKEN);

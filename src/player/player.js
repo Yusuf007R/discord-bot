@@ -1,49 +1,45 @@
 const axios = require("axios");
 const ytdl = require("ytdl-core");
-const YoutubeDlWrap = require("youtube-dl-wrap");
-
-const youtubeDlWrap = new YoutubeDlWrap();
+const Discord = require("discord.js");
 
 module.exports = class Player {
   constructor() {
-    this.connection;
-    this.dispatcher;
+    this.connection, this.message;
+    this.dispatcher, this.buffer;
     this.queue = [];
     this.playing = false;
-    this.message;
     this.paused = false;
-    this.buffer;
     this.youtubeStream = null;
+    this.searching = false; //this property is used in the search system
   }
 
-  play(message, arg) {
+  async play(message, arg) {
     this.message = message;
-    if (this.playing) this.message.channel.send("Added to queue");
     if (ytdl.validateURL(arg)) {
-      this.queue.push({ youtube: true, arg });
-    } else {
-      this.message.channel.send(
-        "It is not a YouTube link, it may take a little longer to load."
-      );
-
-      this.queue.push({ youtube: false, arg });
+      this.queue.push({
+        youtube: true,
+        video_url: arg,
+      });
+      this.message.channel.send("Added to queue");
+      if (!this.playing) return this._play();
     }
-    if (!this.playing) this._play(message, arg);
+    this.message.channel.send("Not a valid Youtube link.");
   }
 
-  pause() {
+  pause(message) {
     try {
       if (this.dispatcher) {
         this.dispatcher.pause();
         this.paused = true;
-        this.message.channel.send("Paused.");
+        message.channel.send("Paused.");
       }
     } catch (error) {
       console.log(error);
+      this._errorHandler();
     }
   }
 
-  resume() {
+  resume(message) {
     try {
       if (this.dispatcher) {
         //there is a bug with the resume on node16 this is a"quick fix/ workaround" should be delete when the bug is fixed
@@ -51,52 +47,66 @@ module.exports = class Player {
         this.dispatcher.pause();
         this.dispatcher.resume();
         this.paused = false;
-        this.message.channel.send("Resumed.");
+        message.channel.send("Resumed.");
       }
     } catch (error) {
       console.log(error);
+      this._errorHandler();
     }
   }
-
-  skip() {
+  seek(message, args) {
     try {
-      if (this.playing) {
-        this.dispatcher.destroy();
-        if (this.streamDestroy.ytdl) this.streamDestroy.ytdl.destroy();
-        if (this.streamDestroy.youtubeDlWrap)
-          this.streamDestroy.youtubeDlWrap.abort();
-        this.playing = false;
-        this._play();
-        this.message.channel.send("Skipped.");
+      if (!this.playing) {
+        return message.channel.send(
+          "You have start playing a song before use this command."
+        );
       }
+      if (!args.length || isNaN(args[0])) {
+        return message.channel.send("You have to specify a number in seconds");
+      }
+
+      this._play(args[0]);
     } catch (error) {
       console.log(error);
+      this._errorHandler();
     }
   }
 
-  stop() {
+  skip(message) {
     try {
       if (this.playing) {
         this.dispatcher.destroy();
         if (this.youtubeStream) {
           this.buffer.destroy();
         }
-        if (this.youtubeStream == false) {
-          this.buffer.youtubeDlProcess.stdin.destroy();
-          this.buffer.youtubeDlProcess.stdout.destroy();
-          this.buffer.youtubeDlProcess.stderr.destroy();
-          this.buffer.youtubeDlProcess.kill("SIGKILL");
-          this.buffer.youtubeDlProcess = null;
+        this.queue.shift();
+        this.playing = false;
+        this._play();
+        message.channel.send("Skipped.");
+      }
+    } catch (error) {
+      console.log(error);
+      this._errorHandler();
+    }
+  }
+
+  stop(message) {
+    try {
+      if (this.playing) {
+        this.dispatcher.destroy();
+        if (this.youtubeStream) {
+          this.buffer.destroy();
         }
         this.buffer.destroy();
         this.buffer = null;
         this.playing = false;
         this.queue = [];
-        this.message.channel.send("Stopped.");
+        message.channel.send("Stopped.");
         this.youtubeStream = null;
       }
     } catch (error) {
       console.log(error);
+      this._errorHandler();
     }
   }
 
@@ -110,39 +120,57 @@ module.exports = class Player {
       this.dispatcher = this.connection.play(res.data.URL);
     } catch (error) {
       console.log(error);
+      this._errorHandler();
     }
   }
 
-  async _play() {
+  async _play(seek = 0) {
     if (this.queue.length == 0) return;
     try {
+      let embed;
       this.playing = true;
-      this.connection = await this.message.member.voice.channel.join();
-
+      if (!this.connection)
+        this.connection = await this.message.member.voice.channel.join();
       if (this.queue[0].youtube) {
         console.log("youtube");
-        this.buffer = ytdl(this.queue[0].arg, {
+        this.buffer = ytdl(this.queue[0].video_url, {
           filter: "audioonly",
         });
         this.youtubeStream = true;
-      } else {
-        this.youtubeStream = false;
-        this.buffer = youtubeDlWrap
-          .execStream([this.queue[0].arg, "-f", "worst[ext=mp4]"], {
-            shell: true,
-            detached: true,
-          })
-          .on("progress", (progress) => console.log(progress.totalSize))
-          .on("error", () => {
-            this._errorHandler();
-          });
-      }
+        this.buffer.on("info", (info) => {
+          let minutes =
+            Math.floor(info.videoDetails.lengthSeconds / 60) +
+            ":" +
+            (info.videoDetails.lengthSeconds % 60
+              ? info.videoDetails.lengthSeconds % 60
+              : "00");
 
-      this.dispatcher = this.connection.play(this.buffer);
+          embed = new Discord.MessageEmbed()
+            .setTitle("Now playing: ")
+            .setThumbnail(
+              info.videoDetails.thumbnails[
+                info.videoDetails.thumbnails.length - 1
+              ].url
+            )
+            .setDescription(
+              `[${info.videoDetails.title}](${this.queue[0].video_url}/ 'optional hovertext') `
+            )
+            .setTimestamp()
+            .setFooter(`Duration: ${minutes}`);
+        });
+      }
+      this.buffer.on("error", (err) => {
+        console.error(err);
+      });
+      this.dispatcher = this.connection.play(this.buffer, {
+        seek,
+      });
       this.dispatcher.on("start", () => {
-        this.queue.shift();
+        if (seek > 0) return;
+        this.message.channel.send(embed);
       });
       this.dispatcher.on("finish", () => {
+        this.queue.shift();
         if (this.queue.length == 0) {
           this.playing = false;
         }
@@ -155,18 +183,8 @@ module.exports = class Player {
   }
 
   _errorHandler() {
-    this.dispatcher.destroy();
-    if (this.youtubeStream) {
-      this.buffer.destroy();
-    }
-    if (this.youtubeStream == false) {
-      this.buffer.youtubeDlProcess.stdin.destroy();
-      this.buffer.youtubeDlProcess.stdout.destroy();
-      this.buffer.youtubeDlProcess.stderr.destroy();
-      this.buffer.youtubeDlProcess.kill("SIGKILL");
-      this.buffer.youtubeDlProcess = null;
-    }
-    this.buffer.destroy();
+    if (this.dispatcher) this.dispatcher.destroy();
+    if (this.youtubeStream) this.buffer.destroy();
     this.buffer = null;
     this.playing = false;
     this.queue = [];

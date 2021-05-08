@@ -1,6 +1,6 @@
 module.exports = {
   cmd: "leave",
-  categories: ["voiceConnection"],
+  categories: ["chat"],
   guildOnly: true,
   description: "leave voice channel ",
   run(message) {

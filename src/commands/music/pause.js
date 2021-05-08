@@ -6,6 +6,6 @@ module.exports = {
   description: "pause current music/speech",
   run(message) {
     const player = message.client.botGlobal.players.get(message.guild.id);
-    player.pause();
+    player.pause(message);
   },
 };

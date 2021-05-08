@@ -6,6 +6,6 @@ module.exports = {
   guildOnly: true,
   run(message) {
     const player = message.client.botGlobal.players.get(message.guild.id);
-    player.resume();
+    player.resume(message);
   },
 };

@@ -1,11 +1,11 @@
 module.exports = {
-  cmd: "skip",
+  cmd: "seek",
+  guildOnly: true,
   aliases: [],
   categories: ["voiceConnection"],
-  description: "skip a music",
-  guildOnly: true,
-  run(message) {
+  description: "play a song from a specified time in seconds",
+  run(message, args) {
     const player = message.client.botGlobal.players.get(message.guild.id);
-    player.skip(message);
+    player.seek(message, args);
   },
 };
