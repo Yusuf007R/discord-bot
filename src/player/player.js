@@ -4,26 +4,38 @@ const Discord = require("discord.js");
 
 module.exports = class Player {
   constructor() {
-    this.connection, this.message;
-    this.dispatcher, this.buffer;
+    this.connection, this.dispatcher, this.buffer;
     this.queue = [];
     this.playing = false;
     this.paused = false;
     this.youtubeStream = null;
     this.searching = false; //this property is used in the search system
+    this.loop = null;
   }
 
   async play(message, arg) {
-    this.message = message;
+    this.textChannel = message.channel;
+    this.voiceChannel = message.member.voice.channel;
     if (ytdl.validateURL(arg)) {
+      let info = await ytdl.getBasicInfo(arg);
+      let video = info.videoDetails;
+      let minutes =
+        Math.floor(video.lengthSeconds / 60) +
+        ":" +
+        (video.lengthSeconds % 60 ? video.lengthSeconds % 60 : "00");
       this.queue.push({
         youtube: true,
         video_url: arg,
+        title: video.title,
+        length: minutes,
+        thumbnail: video.thumbnails[video.thumbnails.length - 1].url,
       });
-      this.message.channel.send("Added to queue");
-      if (!this.playing) return this._play();
+      message.delete();
+      this.textChannel.send(`**${video.title}** was Added to queue`);
+      if (!this.playing) this._play();
+      return;
     }
-    this.message.channel.send("Not a valid Youtube link.");
+    this.textChannel.send("Not a valid Youtube link.");
   }
 
   pause(message) {
@@ -79,7 +91,12 @@ module.exports = class Player {
         if (this.youtubeStream) {
           this.buffer.destroy();
         }
-        this.queue.shift();
+        if (this.loop == "all") {
+          let song = this.queue.shift();
+          this.queue.push(song);
+        } else {
+          this.queue.shift();
+        }
         this.playing = false;
         this._play();
         message.channel.send("Skipped.");
@@ -129,35 +146,21 @@ module.exports = class Player {
     try {
       let embed;
       this.playing = true;
-      if (!this.connection)
-        this.connection = await this.message.member.voice.channel.join();
+      if (!this.connection) this.connection = await this.voiceChannel.join();
       if (this.queue[0].youtube) {
         console.log("youtube");
         this.buffer = ytdl(this.queue[0].video_url, {
           filter: "audioonly",
         });
         this.youtubeStream = true;
-        this.buffer.on("info", (info) => {
-          let minutes =
-            Math.floor(info.videoDetails.lengthSeconds / 60) +
-            ":" +
-            (info.videoDetails.lengthSeconds % 60
-              ? info.videoDetails.lengthSeconds % 60
-              : "00");
-
-          embed = new Discord.MessageEmbed()
-            .setTitle("Now playing: ")
-            .setThumbnail(
-              info.videoDetails.thumbnails[
-                info.videoDetails.thumbnails.length - 1
-              ].url
-            )
-            .setDescription(
-              `[${info.videoDetails.title}](${this.queue[0].video_url}/ 'optional hovertext') `
-            )
-            .setTimestamp()
-            .setFooter(`Duration: ${minutes}`);
-        });
+        embed = new Discord.MessageEmbed()
+          .setTitle("Now playing: ")
+          .setThumbnail(this.queue[0].thumbnail)
+          .setDescription(
+            `[${this.queue[0].title}](${this.queue[0].video_url}/ 'optional hovertext') `
+          )
+          .setTimestamp()
+          .setFooter(`Duration: ${this.queue[0].length}`);
       }
       this.buffer.on("error", (err) => {
         console.error(err);
@@ -167,11 +170,16 @@ module.exports = class Player {
       });
       this.dispatcher.on("start", () => {
         if (seek > 0) return;
-        this.message.channel.send(embed);
+        this.textChannel.send(embed);
       });
       this.dispatcher.on("finish", () => {
-        this.queue.shift();
+        if (!this.loop) this.queue.shift();
+        if (this.loop == "all") {
+          let song = this.queue.shift();
+          this.queue.push(song);
+        }
         if (this.queue.length == 0) {
+          this.textChannel("The queue is now empty");
           this.playing = false;
         }
         this._play();
@@ -189,6 +197,6 @@ module.exports = class Player {
     this.playing = false;
     this.queue = [];
     this.youtubeStream = null;
-    this.message.channel.send("There has been an error.❌");
+    this.textChannel.send("There has been an error.❌");
   }
 };

@@ -7,26 +7,23 @@ let emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"];
 module.exports = {
   cmd: "play",
   categories: ["voiceConnection"],
-  aliases: [],
+  aliases: ["p"],
   guildOnly: true,
   description: "play music",
   async run(message, args) {
-    let deleted = false;
     const player = message.client.botGlobal.players.get(message.guild.id);
     if (urlValidator(args[0])) {
       message.suppressEmbeds(true);
       return player.play(message, args[0]);
     }
-    if (player.searching) return;
-    // message.channel.send(
-    //   "Can't search songs while another search is active, Either select one or cancel it"
-    // );
+    if (player.searching) {
+      player.searchCancel();
+    }
 
     if (!args.length)
       return message.channel.send(
         "Argument is needed, either a song name or URL."
       );
-
     let embed = new Discord.MessageEmbed();
     let prefix = process.env.PREFIX;
     embed
@@ -71,7 +68,6 @@ module.exports = {
             );
             let data = items[index];
             if (!msgObj.deleted) {
-              deleted = true;
               msgObj.delete();
             }
             player.play(message, data.url);
@@ -103,7 +99,6 @@ module.exports = {
             const { args } = msgParser(msg);
             let data = items[args[0] - 1];
             if (!msgObj.deleted) {
-              deleted = true;
               msgObj.delete();
             }
             player.play(message, data.url);
@@ -118,11 +113,22 @@ module.exports = {
           player.searching = false;
           emojiColector.stop(["ended"]);
         });
+
+        const searchCancel = () => {
+          emojiColector.stop(["stop"]);
+          msgCollector.stop(["ended"]);
+          if (!msgObj.deleted) {
+            msgObj.delete();
+          }
+        };
+        player.searchCancel = searchCancel;
+
         emojis.forEach(async (elem) => {
-          if (deleted) return;
           try {
             await msgObj.react(elem);
-          } catch (error) {}
+          } catch (error) {
+            //i have no idea what to do here, dont know how to cancel this loop when the msg is being delete
+          }
         });
       } catch (error) {
         console.log(error);
